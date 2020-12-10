@@ -20,7 +20,7 @@ class Sequence():
         self.fastq2.path = ""
         self.amplicon = tk.StringVar(value = "test")
         self.sgRNA = tk.StringVar()
-    def encode(self):
+    def pack(self):
         obj = {}
         for item in self.__dict__:
             val = getattr(self, item)
@@ -29,11 +29,16 @@ class Sequence():
         obj["fastq1"] = self.fastq1.path
         obj["fastq2"] = self.fastq2.path
         return obj
-
-
-class Encoder(JSONEncoder):
-        def default(self, o):
-            return o.__dict__
+    def unpack(self, obj):
+        for item in self.__dict__:
+            val = getattr(self, item)
+            if isinstance(val, tk.StringVar):
+                val.set(obj[item])
+        self.fastq1.path = self.fastq1.get()
+        self.fastq2.path = self.fastq2.get()
+        self.fastq1.set(os.path.splitext(self.fastq1.path))
+        self.fastq2.set(os.path.splitext(self.fastq2.path))
+        return obj
 
 class Experiment():
     """
@@ -72,9 +77,24 @@ class Experiment():
             if isinstance(val, tk.StringVar) or isinstance(val, tk.IntVar):
                 obj[item] = val.get()
             elif item == "sequences":
-                obj[item] = [x.encode() for x in self.sequences]
+                obj[item] = [x.pack() for x in self.sequences]
 
         return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+    def fromJSON(self, j):
+        obj = json.loads(j)
+        for item in self.__dict__:
+            val = getattr(self, item)
+            if isinstance(val, tk.StringVar) or isinstance(val, tk.IntVar):
+                val.set(obj[item])
+            elif item == "sequences":
+                for s in obj[item]:
+                    se = Sequence()
+                    se.unpack(s)
+                    self.sequences.append(se)
+    def saveExperiment(self):
+        return 0
+    def loadExperiment(self):
+        return 0
 
 class CreateToolTip(object):
     """
@@ -129,11 +149,18 @@ class CreateToolTip(object):
         if tw:
             tw.destroy()
 
-def openFastqFile(postfix, sequenceId, sectionId):
+def openFastqFile(postfix, sectionId):
     file = askopenfile(mode="r", title='Please select Fastq ' + postfix,
                             filetypes=[('Fastq Files', ['.fq', '.fq.gz', '.fastq', '.fastq.gz'])])
     if not file:
         return None
+    global params
+    if postfix == "R1":
+        params.sequences[sectionId].fastq1.set(os.path.basename(file.name))
+        params.sequences[sectionId].fastq1.path = file.name
+    else:
+        params.sequences[sectionId].fastq2.set(os.path.basename(file.name))
+        params.sequences[sectionId].fastq2.path = file.name
     # dir_ = os.path.dirname(file.name)
     # filetype = os.path.splitext(file.name)
     # print (dir_, filetype)
@@ -232,14 +259,14 @@ class ScrollableFrame(ttk.Frame):
 def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
     global params
 
-    btn = tk.Button(root, text = '+', command = functools.partial(openFastqFile, "R1", 0, sectionId), height = 6, width = 1)  
+    btn = tk.Button(root, text = '+', command = lambda: print("test"), height = 6, width = 1)  
     btn.grid(column=3, row=row, rowspan=4, padx = 4, sticky=tk.W)
 
     # Fastq files 1
     row, labelTop = addLabel(root, row, "Fastq file R1:", False, True)
     labelTop = tk.Label(root, textvariable = sequence.fastq1, bd = 1, relief=tk.GROOVE, anchor = tk.W)
     labelTop.grid(column=1, row=row, sticky="EW")
-    btn = ttk.Button(root, text = 'Browse', command = functools.partial(openFastqFile, "R1", 0, sectionId), width=8)  
+    btn = ttk.Button(root, text = 'Browse', command = functools.partial(openFastqFile, "R1", sectionId), width=8)  
     btn.grid(column=2, row=row, sticky=tk.EW)
     row += 1
 
@@ -247,7 +274,7 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
     row, labelTop = addLabel(root, row, "Fastq file R2:", False, True)
     labelTop = tk.Label(root, textvariable = sequence.fastq2, bd = 1, relief=tk.GROOVE, anchor = tk.W)
     labelTop.grid(column=1, row=row, sticky="EW")
-    btn = ttk.Button(root, text = 'Browse', command = functools.partial(openFastqFile, "R2", 1, sectionId), width=8)  
+    btn = ttk.Button(root, text = 'Browse', command = functools.partial(openFastqFile, "R2", sectionId), width=8)  
     btn.grid(column=2, row=row, sticky=tk.EW)
     row += 1
 
@@ -291,6 +318,7 @@ def createLeftPanel(root):
     # Process
     def onProcess():
         print(params.toJSON())
+        params.fromJSON(params.toJSON())
     btn = ttk.Button(root, text = 'Process', command = onProcess)  
     btn.grid(column=0, row=row, columnspan = 3)
     row += 1
