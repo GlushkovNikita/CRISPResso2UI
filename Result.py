@@ -407,7 +407,50 @@ def createRightPanel(root, row = 0):
     row = addComboBox(root, row, "Trimming adapter: ", False, comboValues, 0, None)
     return row
 
+def createSettingsWindow(root):
+    #frame = ScrollableFrame(app)
+    #createSettingsWindow(frame.scrollable_frame)
+    #frame.pack()
+    root.columnconfigure(0, weight=1)
+    root.columnconfigure(1, weight=1)
+    row = createMiddlePanel(root)
+    row = createRightPanel(root, row)
+
+def createMenu(root):
+    menu = tk.Menu(root)
+    app.config(menu=menu)
+
+    fileMenu = tk.Menu(menu, tearoff=0)
+    fileMenu.delete(0)
+    fileMenu.add_command(label="Item")
+    menu.add_cascade(label="File", menu=fileMenu)
+
+    editMenu = tk.Menu(menu, tearoff=0)
+    editMenu.delete(0)
+    editMenu.add_command(label="Undo")
+    editMenu.add_command(label="Redo")
+    menu.add_cascade(label="Edit", menu=editMenu)
+
 def createExperiment():
     global params
     params = Experiment()
 
+#app = tk.Tk()
+
+#params = CRISPRparams()
+
+# Set Style
+#s = ttk.Style()
+#s.theme_use("xpnative")
+#
+#def_font = tk.font.nametofont("TkDefaultFont")
+#def_font.configure(size=11)
+#app.option_add("*Font", def_font)
+## s = ttk.Style()
+## sequencingDesignValues = s.theme_names()
+#
+#app.geometry('1200x700')
+#app.title("CRISPResso2 UI")
+#createMenu(app)
+#createSettingsWindow(app)
+#app.mainloop()
