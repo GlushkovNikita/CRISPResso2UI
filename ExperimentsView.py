@@ -7,6 +7,8 @@ from json import JSONEncoder
 from pathlib import Path
 import sys
 from datetime import datetime
+import shutil
+from ExperimentView import StartExperimentView
 
 class Experiments():
     """
@@ -20,6 +22,7 @@ class ExperimentsView():
     List of experiments and controls
     """
     def __init__(self, root):
+        self.root = root
         self.createExperimentsList(root)
         self.createButtons(root)
 
@@ -36,15 +39,38 @@ class ExperimentsView():
             self.ButtonBasedOn["state"] = "disabled"
             self.ButtonView["state"] = "disabled"
             self.ButtonDel["state"] = "normal"
-
+    def getExperimentId(self):
+        id = 0
+        p = os.path.join(curWorkingFolder, "counter.json")
+        if os.path.isfile(p):
+            with open(p) as j:
+                data = json.load(j)
+                id = int(data["id"])
+        id = id + 1
+        obj = {}
+        obj["id"] = id
+        with open(p, 'w') as outfile:
+            json.dump(obj, outfile)
+        return id
     def newExperiment(self):
+        experimentName = "(not inited)"
+        try:
+            experimentName = "Experiment" + str(self.getExperimentId()).zfill(4)
+            StartExperimentView(self.root, experimentName, os.path.join(curWorkingFolder, experimentName), lambda:StartExperimentsView(self.root))
+        except Exception as err:
+            print("Error: {0}".format(err))
+            pass
         return 0
     def newBasedOn(self):
         return 0
     def openExperiment(self):
         return 0
     def deleteExperiments(self):
-        #os.remove("/tmp/<file_name>.txt")
+        selected = self.expmList.selection()
+        for s in selected:
+            shutil.rmtree(experiments[int(s)]["folder"])
+            self.expmList.delete(s)
+        self.itemSelected(None)
         return 0
 
     def createExperimentsList(self, root):
@@ -128,10 +154,14 @@ class ExperimentsView():
         self.ButtonDel["state"] = "disabled"
 
 experiments = []
+curWorkingFolder = ""
 
 def LoadExperiments(workingDirectory):
     Path(workingDirectory).mkdir(parents=True, exist_ok=True)
     directories = os.listdir(workingDirectory)
+    global curWorkingFolder
+    curWorkingFolder = workingDirectory
+    print("Working directory: " + workingDirectory)
     for entry in directories:
         try:
             p = os.path.join(workingDirectory, entry)
@@ -149,8 +179,13 @@ def LoadExperiments(workingDirectory):
             pass
     return experiments
 
-def CreateExperimentsView(root):
+def getClearFrame(root):
+    for widget in root.winfo_children():
+        widget.destroy()
+    return root
 
+def StartExperimentsView(root):
+    getClearFrame(root)
     return ExperimentsView(root)
 
 # The following code is added to facilitate the Scrolled widgets you specified.

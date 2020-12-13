@@ -6,6 +6,7 @@ import functools
 import tkinter.font
 import json
 from json import JSONEncoder
+from Experiment import *
 
 class CreateToolTip(object):
     """
@@ -60,6 +61,36 @@ class CreateToolTip(object):
         if tw:
             tw.destroy()
 
+class ScrollableFrame(ttk.Frame):
+    def __init__(self, container, *args, **kwargs):
+        super().__init__(container, *args, **kwargs)
+        self.pack(side=tk.LEFT, fill="y", expand = 1)
+        # self.grid_rowconfigure(0, weight=1) # this needed to be added
+        # self.grid_columnconfigure(0, weight=1) # as did this
+
+        canvas = tk.Canvas(self)
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = ttk.Frame(canvas)
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+        
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # self.scrollable_frame.grid(column=0, row=0, sticky = "nsew")
+        # self.scrollable_frame.grid_rowconfigure(0, weight = 1)
+        # self.scrollable_frame.grid_columnconfigure(0, weight = 1)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
 def openFastqFile(postfix, sectionId):
     file = askopenfile(mode="r", title='Please select Fastq ' + postfix,
                             filetypes=[('Fastq Files', ['.fq', '.fq.gz', '.fastq', '.fastq.gz'])])
@@ -113,11 +144,19 @@ def addTextEdit(root, row, label, longLabel, value, hintText, narrow = False):
     row += 1
     return row
 
-def addComboBox(root, row, label, longLabel, comboValues, values, hintText, narrow = False):
+def addComboBox(root, row, label, longLabel, comboValues, value, hintText, narrow = False):
     row, labelTop = addLabel(root, row, label, longLabel, narrow)
 
     combo = ttk.Combobox(root, values = comboValues, state="readonly")
-    combo.current(values)
+    combo.current(value.get())
+    def onSelected(obj):
+        index = 0
+        for v in comboValues:
+            if v == obj.widget.get():
+                value.set(index)
+                break
+            index = index + 1
+    combo.bind("<<ComboboxSelected>>", onSelected)
     combo.grid(column=1, row=row, sticky=tk.W)
     if hintText:
         rna_ttp = CreateToolTip(labelTop, hintText)
@@ -136,36 +175,6 @@ def addCheckBox(root, row, label, longLabel, value, hintText):
         rna_ttp = CreateToolTip(checkbutton, hintText)
     row += 1
     return row
-
-class ScrollableFrame(ttk.Frame):
-    def __init__(self, container, *args, **kwargs):
-        super().__init__(container, *args, **kwargs)
-        self.pack(side=tk.LEFT, fill="y", expand = 1)
-        # self.grid_rowconfigure(0, weight=1) # this needed to be added
-        # self.grid_columnconfigure(0, weight=1) # as did this
-
-        canvas = tk.Canvas(self)
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas)
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
-            )
-        )
-        
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # self.scrollable_frame.grid(column=0, row=0, sticky = "nsew")
-        # self.scrollable_frame.grid_rowconfigure(0, weight = 1)
-        # self.scrollable_frame.grid_columnconfigure(0, weight = 1)
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
 
 def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
     global params
@@ -199,7 +208,7 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
 
     return row
 
-def createLeftPanel(root):
+def createLeftPanel(root, defaultSequenceName, backFunc):
     global params
     row = 0
     root.columnconfigure(0, weight=0)
@@ -208,7 +217,8 @@ def createLeftPanel(root):
     root.columnconfigure(3, weight=0)
     # Sequence Name
     hintText = """Optional suffix to append to the report name. Only alphanumeric characters are allowed."""
-    row = addTextEdit(root, row, "Sample Name *:", False, params.sequenceName, hintText, True)
+    row = addTextEdit(root, row, "Experiment Name *:", False, params.sequenceName, hintText, True)
+    params.sequenceName.set(defaultSequenceName)
 
     # Amplicon Name
     hintText = """If submitting more than one amplicon, please separate amplicon names using commas."""
@@ -216,11 +226,11 @@ def createLeftPanel(root):
 
     # editing tool
     comboValues = [ "Cas9", "Cpfl", "Base editors", "Prime editors", "Custom"]
-    row = addComboBox(root, row, "Editing tool:", False, comboValues, 0, None, True)
+    row = addComboBox(root, row, "Editing tool:", False, comboValues, params.editingTool, None, True)
 
     # Sequencing design:
     comboValues = [ "Paired end reads", "Single end reads", "Interleaved reads"]
-    row = addComboBox(root, row, "Sequencing design:", False, comboValues, 0, None, True)
+    row = addComboBox(root, row, "Sequencing design:", False, comboValues, params.sequencingDesign, None, True)
 
     for i in range(0, len(params.sequences)):
         row = createSequenceDesignSection(root, row, params.sequences[i], i, len(params.sequences))
@@ -229,9 +239,21 @@ def createLeftPanel(root):
     # Process
     def onProcess():
         print(params.toJSON())
-        params.fromJSON(params.toJSON())
-    btn = ttk.Button(root, text = 'Process', command = onProcess)  
-    btn.grid(column=0, row=row, columnspan = 3)
+        #try:
+        #    experimentName = "Experiment" + str(self.getExperimentId()).zfill(4)
+        #    EnableExperimentView(self.root, experimentName, os.path.join(curWorkingFolder, experimentName))
+        #except OSError:
+        #    print ("Creation of the directory %s failed" % experimentName)
+        #else:
+        #    print ("Successfully created the directory %s " % experimentName)
+        #os.mkdir()
+    frame = tk.Frame(root, height = 52)
+    frame.grid(column=0, row=row, columnspan = 4, sticky=tk.NSEW)
+    btn = ttk.Button(frame, text = 'Process', command = onProcess)  
+    btn.place(relx=0.11, rely=0.22, height=36, width=150)
+
+    btn = ttk.Button(frame, text = 'Cancel', command = backFunc)
+    btn.place(relx=0.56, rely=0.22, height=36, width=150)
     row += 1
 
 def createMiddlePanel(root, row = 0):
@@ -242,24 +264,24 @@ def createMiddlePanel(root, row = 0):
     # Minimum homology
     comboValues = [ "50%", "60%", "70%", "80%", "90%", "100%" ]
     hintText = """When reads are aligned to each reference amplicon, they must share this percentage of bases in common."""
-    row = addComboBox(root, row, "Minimum homology for alignment to an amplicon *:", True, comboValues, 1, hintText)
+    row = addComboBox(root, row, "Minimum homology for alignment to an amplicon *:", True, comboValues, params.minimumHomology, hintText)
 
     # Base editing
     row = addDelimeter(root, row, "Base editing", None)
 
     # Base editor output
     hintText = """Check this box to produce plots and tables detailing substitution rates for each base."""
-    row = addCheckBox(root, row, "Base editor output *:", False, False, hintText)
+    row = addCheckBox(root, row, "Base editor output *:", False, params.baseEditorOutput, hintText)
 
     # Base editor target base 
     comboValues = [ "A", "C", "T", "G" ]
     hintText = """The is the pre-edited base. E.g. for C->T editors, this should be set to "C"."""
-    row = addComboBox(root, row, "Base editor target base *:", False, comboValues, 1, hintText)
+    row = addComboBox(root, row, "Base editor target base *:", False, comboValues, params.targetBase, hintText)
 
     # Base editor result base
     comboValues = [ "A", "C", "T", "G" ]
     hintText = """The is the post-edited base. E.g. for C->T editors, this should be set to "T"."""
-    row = addComboBox(root, row, "Base editor result base *:", False, comboValues, 2, hintText)
+    row = addComboBox(root, row, "Base editor result base *:", False, comboValues, params.resultBase, hintText)
 
     # Prime editing
     hintText = """For prime editing experiments, provide the unmodified reference sequence in the 'Amplicon' input above. pegRNA and other prime editing components are input below."""
@@ -276,7 +298,7 @@ def createMiddlePanel(root, row = 0):
     # pegRNA quantification
     comboValues = [ "1", "5", "10" ]
     hintText = """Quantification window size (in bp) at flap site for measuring modifications anchored at the right side of the extension sequence. Similar to the 'quantification window size' parameter, the total length of the quantification window will be 2x this parameter. Default is 5bp (10bp total window size)."""
-    row = addComboBox(root, row, "pegRNA extension quantification window size:", True, comboValues, 2, hintText)
+    row = addComboBox(root, row, "pegRNA extension quantification window size:", True, comboValues, params.pegRNAQuantificationWindowSize, hintText)
 
     hintText = """Nicking sgRNA sequence used in prime editing. The sgRNA should not include the PAM sequence. The sequence should be given in the RNA 5'->3' order, so for Cas9, the PAM would be on the right side of the sequence."""
     row = addTextEdit(root, row, "Nicking sgRNA*:", False, params.nickingSgRNA, hintText)
@@ -292,11 +314,11 @@ def createRightPanel(root, row = 0):
     global params
     comboValues = [ "-15", "-10", "-3", "0", "+1" ]
     hintText = """Only mutations in the quantification window will be used to determine whether a read is modified or unmodified. At least one sgRNA must be provided to use the quantification window."""
-    row = addComboBox(root, row, "Center of the quantification window (relative to 3' end of the provided sgRNA):*:", True, comboValues, 2, hintText)
+    row = addComboBox(root, row, "Center of the quantification window (relative to 3' end of the provided sgRNA):*:", True, comboValues, params.centerQuantificationWindow, hintText)
     
     comboValues = [ "No window", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "15", "20", "25", "30" ]
     hintText = """This setting controls the center of the quantification window. Remember that the sgRNA sequence must be entered without the PAM. For cleaving nucleases, this is the predicted cleavage position. The default is -3 and is suitable for the Cas9 system."""
-    row = addComboBox(root, row, "Quantification window size (bp)*:", False, comboValues, 1, hintText)
+    row = addComboBox(root, row, "Quantification window size (bp)*:", False, comboValues, params.quantificationWindowSize, hintText)
 
     row = addDelimeter(root, row, "HDR", None)
     row = addTextEdit(root, row, "Expected HDR amplicon sequence:", True, params.expectedHDRamplicon, hintText)
@@ -305,20 +327,52 @@ def createRightPanel(root, row = 0):
     row = addDelimeter(root, row, "Quality filtering and trimming", None)
 
     comboValues = [ "No Filter", ">10", ">20", ">30", ">35" ]
-    row = addComboBox(root, row, "Minimum average read quality (phred33 scale):", True, comboValues, 0, None)
+    row = addComboBox(root, row, "Minimum average read quality (phred33 scale):", True, comboValues, params.minimumAverageReadQuality, None)
     comboValues = [ "No Filter", ">10", ">20", ">30", ">35" ]
-    row = addComboBox(root, row, "Minimum single bp quality (phred33 scale):", True, comboValues, 0, None)
+    row = addComboBox(root, row, "Minimum single bp quality (phred33 scale):", True, comboValues, params.minimumSingleQuality, None)
     comboValues = [ "No Filter", "<10", "<20", "<30", "<35" ]
-    row = addComboBox(root, row, "Replace bases with N that have a quality lower than (phred33 scale):", True, comboValues, 0, None)
+    row = addComboBox(root, row, "Replace bases with N that have a quality lower than (phred33 scale):", True, comboValues, params.replaceBasesN, None)
     comboValues = [ "Disabled", "5", "10", "15", "20", "40", "50" ]
-    row = addComboBox(root, row, "Exclude bp from the left side of the amplicon sequence for the quantification of the mutations:", True, comboValues, 3, None)
+    row = addComboBox(root, row, "Exclude bp from the left side of the amplicon sequence for the quantification of the mutations:", True, comboValues, params.excludeBpFromLeft, None)
     comboValues = [ "Disabled", "5", "10", "15", "20", "40", "50" ]
-    row = addComboBox(root, row, "Exclude bp from the right side of the amplicon sequence for the quantification of the mutations:", True, comboValues, 3, None)
+    row = addComboBox(root, row, "Exclude bp from the right side of the amplicon sequence for the quantification of the mutations:", True, comboValues, params.excludeBpFromRight, None)
     comboValues = [ "No Trimming", "Nextera PE", "TruSeq3 PE", "TruSeq3 SE", "TruSeq2 PE", "TruSeq2 SE" ]
-    row = addComboBox(root, row, "Trimming adapter: ", False, comboValues, 0, None)
+    row = addComboBox(root, row, "Trimming adapter: ", False, comboValues, params.trimmingAdapter, None)
     return row
 
 def createExperiment():
     global params
     params = Experiment()
+    params.setDefault()
 
+def getClearFrame(root):
+    for widget in root.winfo_children():
+        widget.destroy()
+    return root
+
+def StartExperimentView(root, experimentName, workingDirectory, backFunc):
+    print("StartExperiment: " + experimentName, workingDirectory)
+    getClearFrame(root)
+    createExperiment()
+
+    frame1 = tk.Frame(root)
+    frame1.place(relx=0.0, rely=0.0, relheight=1.002, relwidth=0.466)
+    frame1.configure(relief='groove')
+    frame1.configure(borderwidth="2")
+    frame1.configure(relief="groove")
+    frame1.configure(highlightbackground="#d9d9d9")
+    frame1.configure(highlightcolor="black")
+
+    frame2 = tk.Frame(root)
+    frame2.place(relx=0.471, rely=0.0, relheight=1.003, relwidth=0.531)
+    frame2.configure(relief='groove')
+    frame2.configure(borderwidth="2")
+    frame2.configure(relief="groove")
+    frame2.configure(highlightbackground="#d9d9d9")
+    frame2.configure(highlightcolor="black")
+
+    createLeftPanel(frame1, experimentName, backFunc)
+    row = createMiddlePanel(frame2)
+    row = createRightPanel(frame2, row)
+
+    return 0

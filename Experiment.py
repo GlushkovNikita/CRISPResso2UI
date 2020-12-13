@@ -15,7 +15,7 @@ class Sequence():
         self.fastq2 = tk.StringVar(value = self.defaultFastqText)
         self.fastq1.path = ""
         self.fastq2.path = ""
-        self.amplicon = tk.StringVar(value = "test")
+        self.amplicon = tk.StringVar()
         self.sgRNA = tk.StringVar()
     def pack(self):
         obj = {}
@@ -44,15 +44,16 @@ class Experiment():
     def __init__(self):
         self.sequenceName = tk.StringVar()
         self.ampliconNames = tk.StringVar()
-        self.editingTool = 0
+        self.editingTool = tk.IntVar(value = 0)
+        self.sequencingDesign = tk.IntVar(value = 0)
         self.sequences = [Sequence()]
         self.minimumHomology = tk.IntVar(value = 1)
         self.baseEditorOutput = tk.IntVar(value = 0)
         self.targetBase = tk.IntVar(value = 1)
-        self.resultBase = tk.IntVar(value = 1)
+        self.resultBase = tk.IntVar(value = 2)
         self.pegRNAspacer = tk.StringVar()
         self.pegRNAextension = tk.StringVar()
-        self.pegRNAQSuantificationWindowSize = tk.IntVar(value = 1)
+        self.pegRNAQuantificationWindowSize = tk.IntVar(value = 1)
         self.nickingSgRNA = tk.StringVar()
         self.scaffoldSequence = tk.StringVar()
         self.centerQuantificationWindow = tk.IntVar(value = 2)
@@ -92,3 +93,13 @@ class Experiment():
         return 0
     def loadExperiment(self):
         return 0
+    def setDefault(self):
+        self.sequences[0].fastq1.path = "E:\Freelance\Bochkov\9i_508__adapters_trimmed__paired_R1.fastq"
+        self.sequences[0].fastq2.path = "E:\Freelance\Bochkov\9i_508__adapters_trimmed__paired_R2.fastq"
+        self.sequences[0].fastq1.set("9i_508__adapters_trimmed__paired_R1.fastq")
+        self.sequences[0].fastq2.set("9i_508__adapters_trimmed__paired_R2.fastq")
+        self.sequences[0].amplicon.set("TGGAGCCTTCAGAGGGTAAAATTAAGCACAGTGGAAGAATTTCATTCTGTTCTCAGTTTTCCTGGATTATGCCTGGCACCATTAAAGAAAATATCATTGGTGTTTCCTATGATGAATATAGATACAGAAGCGTCATCAAAGCATG")
+        self.sequences[0].sgRNA.set("ACCATTAAAGAAAATATCAT")
+        self.expectedHDRamplicon.set("TGGAGCCTTCAGAGGGTAAAATTAAGCACAGTGGAAGAATTTCATTCTGTTCTCAGTTTTCCTGGATTATGCCTGGCACCATTAAAGAAAATATCATCTTTGGTGTTTCCTATGATGAATATAGATACAGAAGCGTCATCAAAGCATG")
+        self.trimmingAdapter.set(2)
+
