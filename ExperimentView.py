@@ -209,7 +209,10 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
 
     return row
 
-def executeUtility(ctx):
+def executeUtility(ctx, params):
+    return 0
+
+def runExperiment(ctx):
     global params
     print(params.toJSON())
     try:
@@ -227,6 +230,8 @@ def executeUtility(ctx):
         obj["folder"] = ctx.workingDirectory
         if ctx.experiments:
             ctx.experiments.append(obj)
+        executeUtility(ctx, params)
+        #ctx.backFunc()
     except OSError:
         print ("Creation of the directory %s failed" % ctx.workingDirectory)
     else:
@@ -265,7 +270,7 @@ def createLeftPanel(root, ctx):
         print(params.toJSON())
     frame = tk.Frame(root, height = 52)
     frame.grid(column=0, row=row, columnspan = 4, sticky=tk.NSEW)
-    btn = ttk.Button(frame, text = 'Process', command = lambda:executeUtility(ctx))  
+    btn = ttk.Button(frame, text = 'Process', command = lambda:runExperiment(ctx))  
     btn.place(relx=0.11, rely=0.22, height=36, width=150)
 
     btn = ttk.Button(frame, text = 'Cancel', command = ctx.backFunc)
@@ -379,16 +384,16 @@ def StartExperimentView(root, ctx):
     frame1.configure(highlightbackground="#d9d9d9")
     frame1.configure(highlightcolor="black")
 
-    frame2 = tk.Frame(root)
+    frame2 = ScrollableFrame(root)
     frame2.place(relx=0.471, rely=0.0, relheight=1.003, relwidth=0.531)
     frame2.configure(relief='groove')
     frame2.configure(borderwidth="2")
     frame2.configure(relief="groove")
-    frame2.configure(highlightbackground="#d9d9d9")
-    frame2.configure(highlightcolor="black")
+    #frame2.configure(highlightbackground="#d9d9d9")
+    #frame2.configure(highlightcolor="black")
 
     createLeftPanel(frame1, ctx)
-    row = createMiddlePanel(frame2)
-    row = createRightPanel(frame2, row)
+    row = createMiddlePanel(frame2.scrollable_frame)
+    row = createRightPanel(frame2.scrollable_frame, row)
 
     return 0
