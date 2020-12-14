@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 import shutil
 from ExperimentView import StartExperimentView
+from Experiment import *
 
 class Experiments():
     """
@@ -55,8 +56,9 @@ class ExperimentsView():
     def newExperiment(self):
         experimentName = "(not inited)"
         try:
-            experimentName = "Experiment" + str(self.getExperimentId()).zfill(4)
-            StartExperimentView(self.root, experimentName, os.path.join(curWorkingFolder, experimentName), lambda:StartExperimentsView(self.root))
+            id = self.getExperimentId()
+            experimentName = "Experiment" + str(id).zfill(4)
+            StartExperimentView(self.root, ExperimentContext(experiments, experimentName, id, os.path.join(curWorkingFolder, experimentName), lambda:StartExperimentsView(self.root)))
         except Exception as err:
             print("Error: {0}".format(err))
             pass
@@ -171,7 +173,8 @@ def LoadExperiments(workingDirectory):
             with open(os.path.join(p, 'id.json')) as j:
                 data = json.load(j)
                 print("Experiment '{}' loaded".format(data["name"]))
-                data["dateText"] = datetime.fromtimestamp(data["date"])
+                # executeUtility(ctx) contains the same code!
+                data["dateText"] = str(datetime.fromtimestamp(data["date"]))
                 data["folder"] = p
                 experiments.append(data)
         except Exception as err:

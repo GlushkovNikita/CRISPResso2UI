@@ -7,6 +7,7 @@ import tkinter.font
 import json
 from json import JSONEncoder
 from Experiment import *
+import datetime
 
 class CreateToolTip(object):
     """
@@ -208,7 +209,30 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
 
     return row
 
-def createLeftPanel(root, defaultSequenceName, backFunc):
+def executeUtility(ctx):
+    global params
+    print(params.toJSON())
+    try:
+        os.mkdir(ctx.workingDirectory)
+        obj = {}
+        obj["name"] = params.sequenceName.get()
+        obj["id"] = ctx.experimentId
+        obj["date"] = int(datetime.datetime.now().timestamp())
+        with open(os.path.join(ctx.workingDirectory, "id.json"), 'w') as outfile:
+            json.dump(obj, outfile)
+        params.saveExperiment(os.path.join(ctx.workingDirectory, "experiment.json"))
+        
+        # LoadExperiments contains the same code!
+        obj["dateText"] = str(datetime.datetime.fromtimestamp(obj["date"]))
+        obj["folder"] = ctx.workingDirectory
+        if ctx.experiments:
+            ctx.experiments.append(obj)
+    except OSError:
+        print ("Creation of the directory %s failed" % ctx.workingDirectory)
+    else:
+        print ("Successfully created the directory %s " % ctx.workingDirectory)
+
+def createLeftPanel(root, ctx):
     global params
     row = 0
     root.columnconfigure(0, weight=0)
@@ -218,7 +242,7 @@ def createLeftPanel(root, defaultSequenceName, backFunc):
     # Sequence Name
     hintText = """Optional suffix to append to the report name. Only alphanumeric characters are allowed."""
     row = addTextEdit(root, row, "Experiment Name *:", False, params.sequenceName, hintText, True)
-    params.sequenceName.set(defaultSequenceName)
+    params.sequenceName.set(ctx.experimentName)
 
     # Amplicon Name
     hintText = """If submitting more than one amplicon, please separate amplicon names using commas."""
@@ -239,20 +263,12 @@ def createLeftPanel(root, defaultSequenceName, backFunc):
     # Process
     def onProcess():
         print(params.toJSON())
-        #try:
-        #    experimentName = "Experiment" + str(self.getExperimentId()).zfill(4)
-        #    EnableExperimentView(self.root, experimentName, os.path.join(curWorkingFolder, experimentName))
-        #except OSError:
-        #    print ("Creation of the directory %s failed" % experimentName)
-        #else:
-        #    print ("Successfully created the directory %s " % experimentName)
-        #os.mkdir()
     frame = tk.Frame(root, height = 52)
     frame.grid(column=0, row=row, columnspan = 4, sticky=tk.NSEW)
-    btn = ttk.Button(frame, text = 'Process', command = onProcess)  
+    btn = ttk.Button(frame, text = 'Process', command = lambda:executeUtility(ctx))  
     btn.place(relx=0.11, rely=0.22, height=36, width=150)
 
-    btn = ttk.Button(frame, text = 'Cancel', command = backFunc)
+    btn = ttk.Button(frame, text = 'Cancel', command = ctx.backFunc)
     btn.place(relx=0.56, rely=0.22, height=36, width=150)
     row += 1
 
@@ -350,8 +366,8 @@ def getClearFrame(root):
         widget.destroy()
     return root
 
-def StartExperimentView(root, experimentName, workingDirectory, backFunc):
-    print("StartExperiment: " + experimentName, workingDirectory)
+def StartExperimentView(root, ctx):
+    print("StartExperiment: " + ctx.experimentName, ctx.workingDirectory)
     getClearFrame(root)
     createExperiment()
 
@@ -371,7 +387,7 @@ def StartExperimentView(root, experimentName, workingDirectory, backFunc):
     frame2.configure(highlightbackground="#d9d9d9")
     frame2.configure(highlightcolor="black")
 
-    createLeftPanel(frame1, experimentName, backFunc)
+    createLeftPanel(frame1, ctx)
     row = createMiddlePanel(frame2)
     row = createRightPanel(frame2, row)
 

@@ -4,6 +4,7 @@ import os
 import tkinter.font
 from ExperimentsView import LoadExperiments, StartExperimentsView
 from ExperimentView import StartExperimentView
+from Experiment import ExperimentContext
 
 def createMenu(root):
     menu = tk.Menu(root)
@@ -42,8 +43,8 @@ def createWindow():
     app.configure(highlightcolor="black")
     createMenu(app)
     app.experimentsView = LoadExperiments(os.path.join("Experiments"))
-    #StartExperimentsView(app)
-    StartExperimentView(app, "Test", "Experiments\Experiment0025", lambda:StartExperimentsView(app))
+    StartExperimentsView(app)
+    #StartExperimentView(app, ExperimentContext(None, "Test", 1, "Experiments\Experiment0026", lambda:StartExperimentsView(app)))
     app.mainloop()
 
 createWindow()

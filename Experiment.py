@@ -89,8 +89,16 @@ class Experiment():
                     se = Sequence()
                     se.unpack(s)
                     self.sequences.append(se)
-    def saveExperiment(self):
-        return 0
+    def saveExperiment(self, path):
+        obj = {}
+        for item in self.__dict__:
+            val = getattr(self, item)
+            if isinstance(val, tk.StringVar) or isinstance(val, tk.IntVar):
+                obj[item] = val.get()
+            elif item == "sequences":
+                obj[item] = [x.pack() for x in self.sequences]
+        with open(path, 'w') as outfile:
+            json.dump(obj, outfile, default=lambda o: o.__dict__, sort_keys=True, indent=4)
     def loadExperiment(self):
         return 0
     def setDefault(self):
@@ -103,3 +111,10 @@ class Experiment():
         self.expectedHDRamplicon.set("TGGAGCCTTCAGAGGGTAAAATTAAGCACAGTGGAAGAATTTCATTCTGTTCTCAGTTTTCCTGGATTATGCCTGGCACCATTAAAGAAAATATCATCTTTGGTGTTTCCTATGATGAATATAGATACAGAAGCGTCATCAAAGCATG")
         self.trimmingAdapter.set(2)
 
+class ExperimentContext():
+    def __init__(self, experiments, experimentName, experimentId, workingDirectory, backFunc):
+        self.experiments = experiments
+        self.experimentName = experimentName
+        self.experimentId = experimentId
+        self.workingDirectory = workingDirectory
+        self.backFunc = backFunc
