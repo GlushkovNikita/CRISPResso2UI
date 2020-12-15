@@ -8,6 +8,8 @@ import json
 from json import JSONEncoder
 from Experiment import *
 import datetime
+import subprocess as sb
+
 
 class CreateToolTip(object):
     """
@@ -209,13 +211,57 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
 
     return row
 
-def executeUtility(ctx, params):
+def generateCmd(ctx, params):
+    cmd = os.path.join(ctx.utilityPath, "CRISPResso ")
+    #CRISPResso -r1 r1.gz -r2 r2.gz -a <amp> -g <sgRNA> -e <Expected HDR amplicon sequence>
+    #[-r1 FASTQ_R1] [-r2 FASTQ_R2]
+    if len(params.sequences) == 1:
+        seq = params.sequences[0]
+        if not os.path.isfile(seq.fastq1.path):
+            return None, "Fastq1 not found"
+        if not os.path.isfile(seq.fastq2.path):
+            return None, "Fastq2 not found"
+        cmd = cmd + "-r1 " + seq.fastq1.path + " -r2 " + seq.fastq2.path
+        #[-a AMPLICON_SEQ] [-an AMPLICON_NAME]
+        if len(seq.amplicon.get()) == 0:
+            return None, "Amplicon is empty"
+        cmd = cmd + " -a " + seq.amplicon.get()
+        #[-g GUIDE_SEQ]
+        if len(seq.sgRNA.get()) == 0:
+            return None, "sgRNA is empty"
+        cmd = cmd + " -g " + seq.sgRNA.get()
+    else:
+        return None, "Only one sequence has been supported"
+    if params.ampliconNames.get() != "":
+        cmd = cmd + " -an " + params.ampliconNames.get()
+    #[-amas AMPLICON_MIN_ALIGNMENT_SCORE]
+    cmd = cmd + " -amas " + params.minimumHomologyValues[params.minimumHomology.get()]
+    #-gn -fg -fgn ignored
+    #-fh: flexiguides will yield guides in amplicons with at least this homology to the flexiguide sequence???
+    #--discard_guide_positions_overhanging_amplicon_edge ignored
+    #[-e EXPECTED_HDR_AMPLICON_SEQ]
+    if params.expectedHDRamplicon.get() != "":
+        cmd = cmd + " -e " + params.expectedHDRamplicon.get()
+    #[-c CODING_SEQ]
+    if params.codingSequence.get() != "":
+        cmd = cmd + " -c " + params.codingSequence.get()
+    #[-q MIN_AVERAGE_READ_QUALITY]
+    cmd = cmd + " -q " + params.minimumAverageReadQualityValues[params.minimumAverageReadQuality.get()]
+    print(cmd)
+    return cmd, None
+
+def executeUtility(ctx, cmd):
+    p = sb.call(cmd)
+    print(p)
     return 0
 
 def runExperiment(ctx):
     global params
-    print(params.toJSON())
     try:
+        cmd, message = generateCmd(ctx, params)
+        if message:
+            ttk.messagebox.showwarning(title = "Warning", message = message)
+            return
         os.mkdir(ctx.workingDirectory)
         obj = {}
         obj["name"] = params.sequenceName.get()
@@ -230,7 +276,7 @@ def runExperiment(ctx):
         obj["folder"] = ctx.workingDirectory
         if ctx.experiments:
             ctx.experiments.append(obj)
-        executeUtility(ctx, params)
+        executeUtility(ctx, cmd)
         #ctx.backFunc()
     except OSError:
         print ("Creation of the directory %s failed" % ctx.workingDirectory)
@@ -283,7 +329,8 @@ def createMiddlePanel(root, row = 0):
     # row = addDelimeter(root, row, "Optional parameters", None)
 
     # Minimum homology
-    comboValues = [ "50%", "60%", "70%", "80%", "90%", "100%" ]
+    params.minimumHomologyValues = ["50", "60", "70", "80", "90", "100"]
+    comboValues = [ x + "%" for x in params.minimumHomologyValues ]
     hintText = """When reads are aligned to each reference amplicon, they must share this percentage of bases in common."""
     row = addComboBox(root, row, "Minimum homology for alignment to an amplicon *:", True, comboValues, params.minimumHomology, hintText)
 
@@ -347,7 +394,9 @@ def createRightPanel(root, row = 0):
     row = addTextEdit(root, row, "Coding Sequence/s:", False, params.codingSequence, hintText)
     row = addDelimeter(root, row, "Quality filtering and trimming", None)
 
-    comboValues = [ "No Filter", ">10", ">20", ">30", ">35" ]
+    params.minimumAverageReadQualityValues = ["0", "10", "20", "30", "35"]
+    comboValues = [ ">" + x for x in params.minimumAverageReadQualityValues ]
+    comboValues[0] = "No Filter"
     row = addComboBox(root, row, "Minimum average read quality (phred33 scale):", True, comboValues, params.minimumAverageReadQuality, None)
     comboValues = [ "No Filter", ">10", ">20", ">30", ">35" ]
     row = addComboBox(root, row, "Minimum single bp quality (phred33 scale):", True, comboValues, params.minimumSingleQuality, None)

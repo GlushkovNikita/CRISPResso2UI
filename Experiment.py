@@ -118,3 +118,4 @@ class ExperimentContext():
         self.experimentId = experimentId
         self.workingDirectory = workingDirectory
         self.backFunc = backFunc
+        self.utilityPath = os.path.join("Bin", "CRISPResso2")
