@@ -212,7 +212,8 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
     return row
 
 def generateCmd(ctx, params):
-    cmd = os.path.join(ctx.utilityPath, "CRISPResso ")
+    print("Current directory is: " + os.getcwd())
+    cmd = ctx.CRISPRessoPath
     #CRISPResso -r1 r1.gz -r2 r2.gz -a <amp> -g <sgRNA> -e <Expected HDR amplicon sequence>
     #[-r1 FASTQ_R1] [-r2 FASTQ_R2]
     if len(params.sequences) == 1:
@@ -221,7 +222,7 @@ def generateCmd(ctx, params):
             return None, "Fastq1 not found"
         if not os.path.isfile(seq.fastq2.path):
             return None, "Fastq2 not found"
-        cmd = cmd + "-r1 " + seq.fastq1.path + " -r2 " + seq.fastq2.path
+        cmd = cmd + " -r1 " + seq.fastq1.path + " -r2 " + seq.fastq2.path
         #[-a AMPLICON_SEQ] [-an AMPLICON_NAME]
         if len(seq.amplicon.get()) == 0:
             return None, "Amplicon is empty"
@@ -247,6 +248,54 @@ def generateCmd(ctx, params):
         cmd = cmd + " -c " + params.codingSequence.get()
     #[-q MIN_AVERAGE_READ_QUALITY]
     cmd = cmd + " -q " + params.minimumAverageReadQualityValues[params.minimumAverageReadQuality.get()]
+    #[-s MIN_SINGLE_BP_QUALITY]
+    cmd = cmd + " -s " + params.minimumSingleQualityValues[params.minimumSingleQuality.get()]
+    #[--min_bp_quality_or_N MIN_BP_QUALITY_OR_N]
+    cmd = cmd + " --min_bp_quality_or_N " + params.replaceBasesNValues[params.replaceBasesN.get()]
+    #[-n NAME]
+    cmd = cmd + " -n " + params.sequenceName.get()
+    #[-o OUTPUT_FOLDER]
+    cmd = cmd + " -o " + ctx.workingDirectory
+    #--flash_command FLASH_COMMAND
+    #--min_paired_end_reads_overlap MIN_PAIRED_END_READS_OVERLAP
+    #                      Parameter for the FLASH read merging step. Minimum
+    #                      required overlap length between two reads to provide a
+    #                      confident overlap. (default: 10)
+    #--max_paired_end_reads_overlap MAX_PAIRED_END_READS_OVERLAP
+    #                      Parameter for the FLASH merging step. Maximum overlap
+    #                      length expected in approximately 90% of read pairs.
+    #                      Please see the FLASH manual for more information.
+    #                      (default: 100)
+    #--stringent_flash_merging
+    #                      Use stringent parameters for flash merging. In the
+    #                      case where flash could merge R1 and R2 reads
+    #                      ambiguously, the expected overlap is calculated as
+    #                      2*average_read_length - amplicon_length. The flash
+    #                      parameters for --min-overlap and --max-overlap will be
+    #                      set to prefer merged reads with length within 10bp of
+    #                      the expected overlap. These values override the
+    #                      --min_paired_end_reads_overlap or
+    #                      --max_paired_end_reads_overlap CRISPResso parameters.
+    #                      (default: False)
+
+    #[-w QUANTIFICATION_WINDOW_SIZE]
+    cmd = cmd + " -w " + params.quantificationWindowSizeValues[params.quantificationWindowSize.get()]
+    #[-wc QUANTIFICATION_WINDOW_CENTER]
+    cmd = cmd + " -wc " + params.centerQuantificationWindowValues[params.centerQuantificationWindow.get()]
+    #[--exclude_bp_from_left EXCLUDE_BP_FROM_LEFT]
+    cmd = cmd + " --exclude_bp_from_left " + params.excludeBpFromLeftValues[params.excludeBpFromLeft.get()]
+    #[--exclude_bp_from_right EXCLUDE_BP_FROM_RIGHT]
+    cmd = cmd + " --exclude_bp_from_right " + params.excludeBpFromRightValues[params.excludeBpFromRight.get()]
+    #--ignore_substitutions
+    #                      Ignore substitutions events for the quantification and
+    #                      visualization (default: False)
+    #--ignore_insertions   Ignore insertions events for the quantification and
+    #                      visualization (default: False)
+    #--ignore_deletions    Ignore deletions events for the quantification and
+    #                      visualization (default: False)
+    #--discard_indel_reads
+    #                      Discard reads with indels in the quantification window
+    #                      from analysis (default: False)
     print(cmd)
     return cmd, None
 
@@ -262,7 +311,12 @@ def runExperiment(ctx):
         if message:
             ttk.messagebox.showwarning(title = "Warning", message = message)
             return
-        os.mkdir(ctx.workingDirectory)
+        try:
+            os.mkdir(ctx.workingDirectory)
+        except OSError:
+            print ("Creation of the directory %s failed" % ctx.workingDirectory)
+        else:
+            print ("Successfully created the directory %s " % ctx.workingDirectory)
         obj = {}
         obj["name"] = params.sequenceName.get()
         obj["id"] = ctx.experimentId
@@ -278,10 +332,9 @@ def runExperiment(ctx):
             ctx.experiments.append(obj)
         executeUtility(ctx, cmd)
         #ctx.backFunc()
-    except OSError:
-        print ("Creation of the directory %s failed" % ctx.workingDirectory)
-    else:
-        print ("Successfully created the directory %s " % ctx.workingDirectory)
+    except Exception as err:
+        print("Error: {0}".format(err))
+        pass
 
 def createLeftPanel(root, ctx):
     global params
@@ -381,10 +434,12 @@ def createMiddlePanel(root, row = 0):
 def createRightPanel(root, row = 0):
     global params
     comboValues = [ "-15", "-10", "-3", "0", "+1" ]
+    params.centerQuantificationWindowValues = [ "-15", "-10", "-3", "0", "1" ]
     hintText = """Only mutations in the quantification window will be used to determine whether a read is modified or unmodified. At least one sgRNA must be provided to use the quantification window."""
     row = addComboBox(root, row, "Center of the quantification window (relative to 3' end of the provided sgRNA):*:", True, comboValues, params.centerQuantificationWindow, hintText)
     
     comboValues = [ "No window", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "15", "20", "25", "30" ]
+    params.quantificationWindowSizeValues = [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "15", "20", "25", "30" ]
     hintText = """This setting controls the center of the quantification window. Remember that the sgRNA sequence must be entered without the PAM. For cleaving nucleases, this is the predicted cleavage position. The default is -3 and is suitable for the Cas9 system."""
     row = addComboBox(root, row, "Quantification window size (bp)*:", False, comboValues, params.quantificationWindowSize, hintText)
 
@@ -395,17 +450,26 @@ def createRightPanel(root, row = 0):
     row = addDelimeter(root, row, "Quality filtering and trimming", None)
 
     params.minimumAverageReadQualityValues = ["0", "10", "20", "30", "35"]
-    comboValues = [ ">" + x for x in params.minimumAverageReadQualityValues ]
-    comboValues[0] = "No Filter"
+    comboValues = [ "No Filter", ">10", ">20", ">30", ">35" ]
     row = addComboBox(root, row, "Minimum average read quality (phred33 scale):", True, comboValues, params.minimumAverageReadQuality, None)
     comboValues = [ "No Filter", ">10", ">20", ">30", ">35" ]
+
+    params.minimumSingleQualityValues = ["0", "10", "20", "30", "35"]
+    comboValues = [ "No Filter", "<10", "<20", "<30", "<35" ]
     row = addComboBox(root, row, "Minimum single bp quality (phred33 scale):", True, comboValues, params.minimumSingleQuality, None)
+
+    params.replaceBasesNValues = ["0", "10", "20", "30", "35"]
     comboValues = [ "No Filter", "<10", "<20", "<30", "<35" ]
     row = addComboBox(root, row, "Replace bases with N that have a quality lower than (phred33 scale):", True, comboValues, params.replaceBasesN, None)
+
+    params.excludeBpFromLeftValues = ["0", "5", "10", "15", "20", "40", "50"]
     comboValues = [ "Disabled", "5", "10", "15", "20", "40", "50" ]
     row = addComboBox(root, row, "Exclude bp from the left side of the amplicon sequence for the quantification of the mutations:", True, comboValues, params.excludeBpFromLeft, None)
+
+    params.excludeBpFromRightValues = ["0", "5", "10", "15", "20", "40", "50"]
     comboValues = [ "Disabled", "5", "10", "15", "20", "40", "50" ]
     row = addComboBox(root, row, "Exclude bp from the right side of the amplicon sequence for the quantification of the mutations:", True, comboValues, params.excludeBpFromRight, None)
+
     comboValues = [ "No Trimming", "Nextera PE", "TruSeq3 PE", "TruSeq3 SE", "TruSeq2 PE", "TruSeq2 SE" ]
     row = addComboBox(root, row, "Trimming adapter: ", False, comboValues, params.trimmingAdapter, None)
     return row
