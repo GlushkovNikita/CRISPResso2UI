@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 from datetime import datetime
 import shutil
-from ExperimentView import StartExperimentView
+from ExperimentView import StartExperiment, RestartExperiment, OpenExperimentResults
 from Experiment import *
 
 class Experiments():
@@ -58,7 +58,7 @@ class ExperimentsView():
         try:
             id = self.getExperimentId()
             experimentName = "Experiment" + str(id).zfill(4)
-            StartExperimentView(self.root, ExperimentContext(experiments, experimentName, id, os.path.join(curWorkingFolder, experimentName), lambda:StartExperimentsView(self.root)))
+            StartExperiment(self.root, ExperimentContext(experiments, experimentName, id, os.path.join(curWorkingFolder, experimentName), lambda:StartExperimentsView(self.root)))
         except Exception as err:
             print("Error: {0}".format(err))
             pass
@@ -76,7 +76,10 @@ class ExperimentsView():
         return 0
 
     def createExperimentsList(self, root):
-        self.expmList = ScrolledTreeView(root, columns = ("Name", "Data"))
+        style = ttk.Style()
+        self.expmList = ttk.Treeview(root, columns = ("Name", "Data")) #Scrolled
+        self.expmList.tag_configure('odd', background="#CCFFFF")
+        self.expmList.tag_configure('odd2', background='red')
         self.expmList.column('#0', width=50,  stretch=True)
         self.expmList.column('#1', width=240, stretch=True)
         self.expmList.column('#2', width=150, stretch=True)
@@ -84,17 +87,13 @@ class ExperimentsView():
         self.expmList.heading('#1', text='Name')
         self.expmList.heading('#2', text='Data')
         self.expmList.place(relx=0.0, rely=0.0, relheight=1.0, relwidth=0.5)
-        #tree.tag_configure('bg', background='yellow')
-        #tree.tag_configure('fg', foreground='red')
-        #self.expmList.pack(fill='x')
-        #self.expmList = tk.Listbox(root)
-        #self.expmList.configure(background="white")
-        #self.expmList.configure(disabledforeground="#a3a3a3")
-        #self.expmList.configure(font="TkFixedFont")
-        #self.expmList.configure(foreground="#000000")
+
         i = 0
         for e in experiments:
-            self.expmList.insert('', index = 'end', iid = i, text = str(i), values = (e["name"], e["dateText"]))
+            if i % 2 == 0:
+                self.expmList.insert('', index = 'end', iid = i, text = str(i), values = (e["name"], e["dateText"]), tags = ('odd',))
+            else:
+                self.expmList.insert('', index = 'end', iid = i, text = str(i), values = (e["name"], e["dateText"]), tags = ('odd2',))
             i = i + 1
 
         self.expmList.bind("<<TreeviewSelect>>", self.itemSelected)

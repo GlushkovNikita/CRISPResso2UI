@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import asksaveasfilename, askopenfile
+from tkinter import messagebox
 import os
 import functools
 import tkinter.font
@@ -9,7 +10,21 @@ from json import JSONEncoder
 from Experiment import *
 import datetime
 import subprocess as sb
+import webbrowser
+import logging
+import sys
+import copy
 
+#from test._mock_backport import inplace
+logging.basicConfig(level=logging.INFO,
+                     format='%(message)s \n',
+                     stream=sys.stderr,
+                     filemode="w"
+                     )
+error   = logging.critical
+warn    = logging.warning
+debug   = logging.debug
+info    = logging.info
 
 class CreateToolTip(object):
     """
@@ -108,7 +123,7 @@ def openFastqFile(postfix, sectionId):
         params.sequences[sectionId].fastq2.path = file.name
     # dir_ = os.path.dirname(file.name)
     # filetype = os.path.splitext(file.name)
-    # print (dir_, filetype)
+    # warn (dir_, filetype)
     # fastq2.set(os.path.basename(file.name))
     return file.name
 
@@ -182,7 +197,7 @@ def addCheckBox(root, row, label, longLabel, value, hintText):
 def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
     global params
 
-    btn = tk.Button(root, text = '+', command = lambda: print("test"), height = 6, width = 1)  
+    btn = tk.Button(root, text = '+', command = lambda: warn("test"), height = 6, width = 1)  
     btn.grid(column=3, row=row, rowspan=4, padx = 4, sticky=tk.W)
 
     # Fastq files 1
@@ -212,7 +227,7 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
     return row
 
 def generateCmd(ctx, params):
-    print("Current directory is: " + os.getcwd())
+    info("Current directory is: " + os.getcwd())
     cmd = ctx.CRISPRessoPath
     #CRISPResso -r1 r1.gz -r2 r2.gz -a <amp> -g <sgRNA> -e <Expected HDR amplicon sequence>
     #[-r1 FASTQ_R1] [-r2 FASTQ_R2]
@@ -296,33 +311,54 @@ def generateCmd(ctx, params):
     #--discard_indel_reads
     #                      Discard reads with indels in the quantification window
     #                      from analysis (default: False)
-    print(cmd)
+    info(cmd)
     return cmd, None
 
-def executeUtility(ctx, cmd):
-    p = sb.call(cmd)
-    print(p)
-    return 0
 
-def runExperiment(ctx):
+def OpenExperimentResults(workingDirectory, experiment):
+    path = os.path.join(workingDirectory, "CRISPResso_on_" + experiment.sequenceName.get() + ".html")
+    if os.path.isfile(path):
+        webbrowser.open_new_tab(path)
+    else:
+        messagebox.showwarning(title = "Warning", message = "CRISPResso execution has been failed")
+
+def executeUtility(ctx, cmd, root):
+    getClearFrame(root)
+    #popup = tk.Toplevel()
+    label = tk.Label(root, text="Report preparing, please wait several minutes...")
+    label.place(relx=0.5, rely = 0.5, anchor=tk.CENTER)
+    root.pack_slaves()
+    root.update()
+    p = sb.call(cmd)
+    global params
+    OpenExperimentResults(ctx.workingDirectory, params)
+
+def runExperiment(ctx, root):
     global params
     try:
         cmd, message = generateCmd(ctx, params)
         if message:
-            ttk.messagebox.showwarning(title = "Warning", message = message)
+            messagebox.showwarning(title = "Warning", message = message)
             return
         try:
             os.mkdir(ctx.workingDirectory)
         except OSError:
-            print ("Creation of the directory %s failed" % ctx.workingDirectory)
+            messagebox.showwarning(title = "Warning", message = "Creation of the directory %s failed" % ctx.workingDirectory)
+            return
         else:
-            print ("Successfully created the directory %s " % ctx.workingDirectory)
+            info ("Successfully created the directory %s " % ctx.workingDirectory)
+        fileHandler = logging.FileHandler(os.path.join(ctx.workingDirectory, "log.txt"))
+        logging.getLogger().addHandler(fileHandler)
+
         obj = {}
         obj["name"] = params.sequenceName.get()
         obj["id"] = ctx.experimentId
         obj["date"] = int(datetime.datetime.now().timestamp())
+        obj["succ"] = False
+        id_obj = copy.deepcopy(obj)
+
         with open(os.path.join(ctx.workingDirectory, "id.json"), 'w') as outfile:
-            json.dump(obj, outfile)
+            json.dump(id_obj, outfile)
         params.saveExperiment(os.path.join(ctx.workingDirectory, "experiment.json"))
         
         # LoadExperiments contains the same code!
@@ -330,13 +366,22 @@ def runExperiment(ctx):
         obj["folder"] = ctx.workingDirectory
         if ctx.experiments:
             ctx.experiments.append(obj)
-        executeUtility(ctx, cmd)
-        #ctx.backFunc()
-    except Exception as err:
-        print("Error: {0}".format(err))
-        pass
+        executeUtility(ctx, cmd, root)
+        id_obj["succ"] = True
+        obj["succ"] = True
+        with open(os.path.join(ctx.workingDirectory, "id.json"), 'w') as outfile:
+            json.dump(id_obj, outfile)
 
-def createLeftPanel(root, ctx):
+        ctx.backFunc()
+    except Exception as err:
+        warn("Error: {0}".format(err))
+        messagebox.showwarning(title = "Warning", message = "Error: {0}".format(err))
+        pass
+    finally:
+        logging.getLogger().removeHandler(fileHandler)
+        fileHandler.close()
+
+def createLeftPanel(root, ctx, topRoot):
     global params
     row = 0
     root.columnconfigure(0, weight=0)
@@ -365,11 +410,9 @@ def createLeftPanel(root, ctx):
     # row = createSequenceDesignSection(row, 1, 2)
 
     # Process
-    def onProcess():
-        print(params.toJSON())
     frame = tk.Frame(root, height = 52)
     frame.grid(column=0, row=row, columnspan = 4, sticky=tk.NSEW)
-    btn = ttk.Button(frame, text = 'Process', command = lambda:runExperiment(ctx))  
+    btn = ttk.Button(frame, text = 'Process', command = lambda:runExperiment(ctx, topRoot))  
     btn.place(relx=0.11, rely=0.22, height=36, width=150)
 
     btn = ttk.Button(frame, text = 'Cancel', command = ctx.backFunc)
@@ -474,20 +517,15 @@ def createRightPanel(root, row = 0):
     row = addComboBox(root, row, "Trimming adapter: ", False, comboValues, params.trimmingAdapter, None)
     return row
 
-def createExperiment():
-    global params
-    params = Experiment()
-    params.setDefault()
-
 def getClearFrame(root):
     for widget in root.winfo_children():
         widget.destroy()
     return root
 
-def StartExperimentView(root, ctx):
-    print("StartExperiment: " + ctx.experimentName, ctx.workingDirectory)
+def executeExperiment(root, ctx, experiment):
     getClearFrame(root)
-    createExperiment()
+    global params
+    params = experiment
 
     frame1 = tk.Frame(root)
     frame1.place(relx=0.0, rely=0.0, relheight=1.002, relwidth=0.466)
@@ -505,8 +543,16 @@ def StartExperimentView(root, ctx):
     #frame2.configure(highlightbackground="#d9d9d9")
     #frame2.configure(highlightcolor="black")
 
-    createLeftPanel(frame1, ctx)
+    createLeftPanel(frame1, ctx, root)
     row = createMiddlePanel(frame2.scrollable_frame)
     row = createRightPanel(frame2.scrollable_frame, row)
 
-    return 0
+def RestartExperiment(root, ctx, experiment):
+    info("RestartExperiment: {} in {}".format(ctx.experimentName, ctx.workingDirectory))
+    executeExperiment(root, ctx, experiment)
+
+def StartExperiment(root, ctx):
+    info("StartExperiment: {} in {}".format(ctx.experimentName, ctx.workingDirectory))
+    experiment = Experiment()
+    experiment.setDefault()
+    executeExperiment(root, ctx, experiment)

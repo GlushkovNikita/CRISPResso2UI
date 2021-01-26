@@ -3,7 +3,6 @@ from tkinter import ttk
 import os
 import tkinter.font
 from ExperimentsView import LoadExperiments, StartExperimentsView
-from ExperimentView import StartExperimentView
 from Experiment import ExperimentContext
 
 def createMenu(root):
