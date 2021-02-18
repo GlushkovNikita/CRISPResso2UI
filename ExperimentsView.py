@@ -64,6 +64,19 @@ class ExperimentsView():
             pass
         return 0
     def newBasedOn(self):
+        try:
+            id = self.getExperimentId()
+            experimentName = "Experiment" + str(id).zfill(4)
+            experimentPath = experiments[0]["folder"]
+            p = os.path.join(experimentPath, "experiment.json")
+            if os.path.isfile(p):
+                with open(p) as j:
+                    experiment = Experiment()
+                    experiment.fromJSON(j)
+                    RestartExperiment(self.root, ExperimentContext(experiments, experimentName, id, os.path.join(curWorkingFolder, experimentName), lambda:StartExperimentsView(self.root)), experiment)
+        except Exception as err:
+            print("Error: {0}".format(err))
+            pass
         return 0
     def openExperiment(self):
         return 0

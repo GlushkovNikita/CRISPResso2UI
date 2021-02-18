@@ -233,11 +233,16 @@ def generateCmd(ctx, params):
     #[-r1 FASTQ_R1] [-r2 FASTQ_R2]
     if len(params.sequences) == 1:
         seq = params.sequences[0]
-        if not os.path.isfile(seq.fastq1.path):
-            return None, "Fastq1 not found"
-        if not os.path.isfile(seq.fastq2.path):
-            return None, "Fastq2 not found"
-        cmd = cmd + " -r1 " + seq.fastq1.path + " -r2 " + seq.fastq2.path
+        fastq_found = False;
+        if os.path.isfile(seq.fastq1.path):
+            cmd = cmd + " -r1 " + seq.fastq1.path
+            fastq_found = True
+        if os.path.isfile(seq.fastq2.path):
+            cmd = cmd + " -r2 " + seq.fastq2.path
+            fastq_found = True
+        if not fastq_found:
+            return None, "Fastq1 or Fastq2 not found"
+           
         #[-a AMPLICON_SEQ] [-an AMPLICON_NAME]
         if len(seq.amplicon.get()) == 0:
             return None, "Amplicon is empty"
@@ -329,7 +334,8 @@ def executeUtility(ctx, cmd, root):
     label.place(relx=0.5, rely = 0.5, anchor=tk.CENTER)
     root.pack_slaves()
     root.update()
-    p = sb.call(cmd)
+    res = sb.call(cmd)
+    print(res)
     global params
     OpenExperimentResults(ctx.workingDirectory, params)
 
@@ -364,8 +370,8 @@ def runExperiment(ctx, root):
         # LoadExperiments contains the same code!
         obj["dateText"] = str(datetime.datetime.fromtimestamp(obj["date"]))
         obj["folder"] = ctx.workingDirectory
-        if ctx.experiments:
-            ctx.experiments.append(obj)
+        print("ctx.experiments", len(ctx.experiments))
+        ctx.experiments.append(obj)
         executeUtility(ctx, cmd, root)
         id_obj["succ"] = True
         obj["succ"] = True
@@ -376,7 +382,7 @@ def runExperiment(ctx, root):
     except Exception as err:
         warn("Error: {0}".format(err))
         messagebox.showwarning(title = "Warning", message = "Error: {0}".format(err))
-        pass
+        ctx.backFunc()
     finally:
         logging.getLogger().removeHandler(fileHandler)
         fileHandler.close()

@@ -79,7 +79,7 @@ class Experiment():
 
         return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=True, indent=4)
     def fromJSON(self, j):
-        obj = json.loads(j)
+        obj = json.load(j)
         for item in self.__dict__:
             val = getattr(self, item)
             if isinstance(val, tk.StringVar) or isinstance(val, tk.IntVar):

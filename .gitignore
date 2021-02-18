@@ -3,3 +3,6 @@
 /*.bak2
 /*.bak3
 /Experiments
+/bin
+/dist
+/__pycache__
