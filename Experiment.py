@@ -102,7 +102,8 @@ class Experiment():
     def loadExperiment(self):
         return 0
     def setDefault(self):
-        return
+        if not os.path.isfile("default"):
+            return
         self.sequences[0].fastq1.path = "E:\Freelance\Bochkov\9i_508__adapters_trimmed__paired_R1.fastq"
         self.sequences[0].fastq2.path = "E:\Freelance\Bochkov\9i_508__adapters_trimmed__paired_R2.fastq"
         self.sequences[0].fastq1.set("9i_508__adapters_trimmed__paired_R1.fastq")
@@ -119,5 +120,5 @@ class ExperimentContext():
         self.experimentId = experimentId
         self.workingDirectory = workingDirectory
         self.backFunc = backFunc
-        #self.CRISPRessoPath = os.path.join("CRISPResso2", "CRISPResso.exe")
+        #self.CRISPRessoPath = "python " + os.path.join("CRISPResso2", "CRISPResso.py")
         self.CRISPRessoPath = "CRISPResso.exe"

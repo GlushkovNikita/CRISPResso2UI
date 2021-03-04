@@ -231,17 +231,24 @@ def generateCmd(ctx, params):
     cmd = ctx.CRISPRessoPath
     #CRISPResso -r1 r1.gz -r2 r2.gz -a <amp> -g <sgRNA> -e <Expected HDR amplicon sequence>
     #[-r1 FASTQ_R1] [-r2 FASTQ_R2]
+    if params.editingTool.get() != 0:
+        return None, "Only Cas9 supported"
     if len(params.sequences) == 1:
         seq = params.sequences[0]
-        fastq_found = False;
+        fastq_files = 0
+        if os.path.isfile(seq.fastq1.path):
+            fastq_files = fastq_files + 1
+        if os.path.isfile(seq.fastq2.path):
+            fastq_files = fastq_files + 1
+        if fastq_files == 0:
+            return None, "Fastq1 or Fastq2 not found"
         if os.path.isfile(seq.fastq1.path):
             cmd = cmd + " -r1 " + seq.fastq1.path
-            fastq_found = True
         if os.path.isfile(seq.fastq2.path):
-            cmd = cmd + " -r2 " + seq.fastq2.path
-            fastq_found = True
-        if not fastq_found:
-            return None, "Fastq1 or Fastq2 not found"
+            if fastq_files == 2:
+                cmd = cmd + " -r2 " + seq.fastq2.path
+            else:
+                cmd = cmd + " -r1 " + seq.fastq2.path
            
         #[-a AMPLICON_SEQ] [-an AMPLICON_NAME]
         if len(seq.amplicon.get()) == 0:
@@ -316,6 +323,20 @@ def generateCmd(ctx, params):
     #--discard_indel_reads
     #                      Discard reads with indels in the quantification window
     #                      from analysis (default: False)
+    if params.trimmingAdapter.get() != 0:
+        # "Nextera PE", "TruSeq3 PE", "TruSeq3 SE", "TruSeq2 PE", "TruSeq2 SE"
+        cmd = cmd + """ --trimmomatic_command "java -jar trimmomatic.jar" --trim_sequences --trimmomatic_options_string "ILLUMINACLIP:adapters/"""
+        if params.trimmingAdapter.get() == 1:
+            cmd = cmd + "NexteraPE-PE.fa"
+        elif params.trimmingAdapter.get() == 2:
+            cmd = cmd + "TruSeq3-PE.fa"
+        elif params.trimmingAdapter.get() == 3:
+            cmd = cmd + "TruSeq3-SE.fa"
+        elif params.trimmingAdapter.get() == 4:
+            cmd = cmd + "TruSeq2-PE.fa"
+        elif params.trimmingAdapter.get() == 5:
+            cmd = cmd + "TruSeq2-PE.fa"
+        cmd = cmd + """:0:90:10:0:true MINLEN:40" """
     info(cmd)
     return cmd, None
 
