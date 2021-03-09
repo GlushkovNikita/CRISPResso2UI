@@ -162,10 +162,10 @@ def addTextEdit(root, row, label, longLabel, value, hintText, narrow = False):
     row += 1
     return row
 
-def addComboBox(root, row, label, longLabel, comboValues, value, hintText, narrow = False):
+def addComboBox(root, row, label, longLabel, comboValues, value, hintText, narrow = False, enabled = True):
     row, labelTop = addLabel(root, row, label, longLabel, narrow)
 
-    combo = ttk.Combobox(root, values = comboValues, state="readonly")
+    combo = ttk.Combobox(root, values = comboValues, state="readonly" if enabled else "disabled")
     combo.current(value.get())
     def onSelected(obj):
         index = 0
@@ -218,11 +218,11 @@ def createSequenceDesignSection(root, row, sequence, sectionId, sectionsNumber):
 
     # Amplicon
     hintText = """Enter the amplicon sequence. If submitting more than one amplicon, please separate amplicons using commas."""
-    row = addTextEdit(root, row, "Amplicon*:", False, sequence.amplicon, hintText, True)
+    row = addTextEdit(root, row, "Amplicon (?):", False, sequence.amplicon, hintText, True)
 
     # sgRNA
     hintText = """The sgRNA sequence should be provided without the PAM sequence. If the sgRNA is not provided, quantification may include modifications far from the predicted editing site and may result in overestimation of editing rates. Multiple sgRNA sequences may be given separated by commas."""
-    row = addTextEdit(root, row, "sgRNA*:", False, sequence.sgRNA, hintText, True)
+    row = addTextEdit(root, row, "sgRNA (?):", False, sequence.sgRNA, hintText, True)
 
     return row
 
@@ -313,6 +313,22 @@ def generateCmd(ctx, params):
     cmd = cmd + " --exclude_bp_from_left " + params.excludeBpFromLeftValues[params.excludeBpFromLeft.get()]
     #[--exclude_bp_from_right EXCLUDE_BP_FROM_RIGHT]
     cmd = cmd + " --exclude_bp_from_right " + params.excludeBpFromRightValues[params.excludeBpFromRight.get()]
+    # '--conversion_nuc_from'
+    cmd = cmd + " --conversion_nuc_from" + params.targetBaseValues[params.targetBase.get()]
+    # '--conversion_nuc_from'
+    cmd = cmd + " --conversion_nuc_to" + params.resultBaseValues[params.resultBase.get()]
+
+    # Prime editing
+    if len(params.pegRNAspacer.get()) != 0:
+        cmd = cmd + " --prime_editing_pegRNA_spacer_seq" + params.pegRNAspacer.get()
+    if len(params.pegRNAextension.get()) != 0:
+        cmd = cmd + " --prime_editing_pegRNA_extension_seq" + params.pegRNAextension.get()
+    cmd = cmd + " --prime_editing_pegRNA_extension_quantification_window_size" + params.pegRNAQuantificationWindowSizeValues[params.pegRNAQuantificationWindowSize.get()]
+    if len(params.nickingSgRNA.get()) != 0:
+        cmd = cmd + " --prime_editing_nicking_guide_seq" + params.nickingSgRNA.get()
+    if len(params.scaffoldSequence.get()) != 0:
+        cmd = cmd + " --prime_editing_pegRNA_scaffold_seq" + params.scaffoldSequence.get()
+    
     #--ignore_substitutions
     #                      Ignore substitutions events for the quantification and
     #                      visualization (default: False)
@@ -417,12 +433,12 @@ def createLeftPanel(root, ctx, topRoot):
     root.columnconfigure(3, weight=0)
     # Sequence Name
     hintText = """Optional suffix to append to the report name. Only alphanumeric characters are allowed."""
-    row = addTextEdit(root, row, "Experiment Name *:", False, params.sequenceName, hintText, True)
+    row = addTextEdit(root, row, "Experiment Name (?):", False, params.sequenceName, hintText, True)
     params.sequenceName.set(ctx.experimentName)
 
     # Amplicon Name
     hintText = """If submitting more than one amplicon, please separate amplicon names using commas."""
-    row = addTextEdit(root, row, "Amplicon Name/s*:", False, params.ampliconNames, hintText, True)
+    row = addTextEdit(root, row, "Amplicon Name/s (?):", False, params.ampliconNames, hintText, True)
 
     # editing tool
     comboValues = [ "Cas9", "Cpfl", "Base editors", "Prime editors", "Custom"]
@@ -430,7 +446,7 @@ def createLeftPanel(root, ctx, topRoot):
 
     # Sequencing design:
     comboValues = [ "Paired end reads", "Single end reads", "Interleaved reads"]
-    row = addComboBox(root, row, "Sequencing design:", False, comboValues, params.sequencingDesign, None, True)
+    row = addComboBox(root, row, "Sequencing design:", False, comboValues, params.sequencingDesign, None, True, enabled = False)
 
     for i in range(0, len(params.sequences)):
         row = createSequenceDesignSection(root, row, params.sequences[i], i, len(params.sequences))
@@ -455,47 +471,47 @@ def createMiddlePanel(root, row = 0):
     params.minimumHomologyValues = ["50", "60", "70", "80", "90", "100"]
     comboValues = [ x + "%" for x in params.minimumHomologyValues ]
     hintText = """When reads are aligned to each reference amplicon, they must share this percentage of bases in common."""
-    row = addComboBox(root, row, "Minimum homology for alignment to an amplicon *:", True, comboValues, params.minimumHomology, hintText)
+    row = addComboBox(root, row, "Minimum homology for alignment to an amplicon (?):", True, comboValues, params.minimumHomology, hintText)
 
     # Base editing
     row = addDelimeter(root, row, "Base editing", None)
 
     # Base editor output
     hintText = """Check this box to produce plots and tables detailing substitution rates for each base."""
-    row = addCheckBox(root, row, "Base editor output *:", False, params.baseEditorOutput, hintText)
+    row = addCheckBox(root, row, "Base editor output (?):", False, params.baseEditorOutput, hintText)
 
     # Base editor target base 
-    comboValues = [ "A", "C", "T", "G" ]
+    params.targetBaseValues = [ "A", "C", "T", "G" ]
     hintText = """The is the pre-edited base. E.g. for C->T editors, this should be set to "C"."""
-    row = addComboBox(root, row, "Base editor target base *:", False, comboValues, params.targetBase, hintText)
+    row = addComboBox(root, row, "Base editor target base (?):", False, params.targetBaseValues, params.targetBase, hintText)
 
     # Base editor result base
-    comboValues = [ "A", "C", "T", "G" ]
+    params.resultBaseValues = [ "A", "C", "T", "G" ]
     hintText = """The is the post-edited base. E.g. for C->T editors, this should be set to "T"."""
-    row = addComboBox(root, row, "Base editor result base *:", False, comboValues, params.resultBase, hintText)
+    row = addComboBox(root, row, "Base editor result base (?):", False, params.resultBaseValues, params.resultBase, hintText)
 
     # Prime editing
     hintText = """For prime editing experiments, provide the unmodified reference sequence in the 'Amplicon' input above. pegRNA and other prime editing components are input below."""
-    row = addDelimeter(root, row, "Prime editing *", hintText)
+    row = addDelimeter(root, row, "Prime editing (?)", hintText)
 
     # pegRNA spacer sequence
     hintText = """The spacer should not include the PAM sequence. The sequence should be given in the RNA 5'->3' order, so for Cas9, the PAM would be on the right side of the given sequence."""
-    row = addTextEdit(root, row, "pegRNA spacer sequence*:", False, params.pegRNAspacer, hintText)
+    row = addTextEdit(root, row, "pegRNA spacer sequence (?):", False, params.pegRNAspacer, hintText)
 
     # pegRNA extension sequence
     hintText = """The sequence should be given in the RNA 5'->3' order, such that the sequence starts with the RT template including the edit, followed by the Primer-binding site (PBS)."""
-    row = addTextEdit(root, row, "pegRNA extension sequence*:", True, params.pegRNAextension, hintText)
+    row = addTextEdit(root, row, "pegRNA extension sequence (?):", True, params.pegRNAextension, hintText)
 
     # pegRNA quantification
-    comboValues = [ "1", "5", "10" ]
+    params.pegRNAQuantificationWindowSizeValues = [ "1", "5", "10" ]
     hintText = """Quantification window size (in bp) at flap site for measuring modifications anchored at the right side of the extension sequence. Similar to the 'quantification window size' parameter, the total length of the quantification window will be 2x this parameter. Default is 5bp (10bp total window size)."""
-    row = addComboBox(root, row, "pegRNA extension quantification window size:", True, comboValues, params.pegRNAQuantificationWindowSize, hintText)
+    row = addComboBox(root, row, "pegRNA extension quantification window size:", True, params.pegRNAQuantificationWindowSizeValues, params.pegRNAQuantificationWindowSize, hintText)
 
     hintText = """Nicking sgRNA sequence used in prime editing. The sgRNA should not include the PAM sequence. The sequence should be given in the RNA 5'->3' order, so for Cas9, the PAM would be on the right side of the sequence."""
-    row = addTextEdit(root, row, "Nicking sgRNA*:", False, params.nickingSgRNA, hintText)
+    row = addTextEdit(root, row, "Nicking sgRNA (?):", False, params.nickingSgRNA, hintText)
 
     hintText = """If given, reads containing any of this scaffold sequence before extension sequence will be classified as 'Scaffold-incorporated'. The sequence should be given in the 5'->3' order such that the RT template directly follows this sequence. A common value is 'GGCACCGAGUCGGUGC'."""
-    row = addTextEdit(root, row, "Scaffold sequence*:", False, params.scaffoldSequence, hintText)
+    row = addTextEdit(root, row, "Scaffold sequence (?):", False, params.scaffoldSequence, hintText)
     
     # Quantification window
     row = addDelimeter(root, row, "Quantification window", None)
@@ -506,12 +522,12 @@ def createRightPanel(root, row = 0):
     comboValues = [ "-15", "-10", "-3", "0", "+1" ]
     params.centerQuantificationWindowValues = [ "-15", "-10", "-3", "0", "1" ]
     hintText = """Only mutations in the quantification window will be used to determine whether a read is modified or unmodified. At least one sgRNA must be provided to use the quantification window."""
-    row = addComboBox(root, row, "Center of the quantification window (relative to 3' end of the provided sgRNA):*:", True, comboValues, params.centerQuantificationWindow, hintText)
+    row = addComboBox(root, row, "Center of the quantification window (relative to 3' end of the provided sgRNA):(?):", True, comboValues, params.centerQuantificationWindow, hintText)
     
     comboValues = [ "No window", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "15", "20", "25", "30" ]
     params.quantificationWindowSizeValues = [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "15", "20", "25", "30" ]
     hintText = """This setting controls the center of the quantification window. Remember that the sgRNA sequence must be entered without the PAM. For cleaving nucleases, this is the predicted cleavage position. The default is -3 and is suitable for the Cas9 system."""
-    row = addComboBox(root, row, "Quantification window size (bp)*:", False, comboValues, params.quantificationWindowSize, hintText)
+    row = addComboBox(root, row, "Quantification window size (bp)(?):", False, comboValues, params.quantificationWindowSize, hintText)
 
     row = addDelimeter(root, row, "HDR", None)
     row = addTextEdit(root, row, "Expected HDR amplicon sequence:", True, params.expectedHDRamplicon, hintText)

@@ -44,11 +44,11 @@ class Experiment():
     def __init__(self):
         self.sequenceName = tk.StringVar()
         self.ampliconNames = tk.StringVar()
-        self.editingTool = tk.IntVar(value = 0)
-        self.sequencingDesign = tk.IntVar(value = 0)
+        self.editingTool = tk.IntVar(value = 0) # not done
+        self.sequencingDesign = tk.IntVar(value = 0) # not done
         self.sequences = [Sequence()]
         self.minimumHomology = tk.IntVar(value = 1)
-        self.baseEditorOutput = tk.IntVar(value = 0)
+        self.baseEditorOutput = tk.IntVar(value = 0) # not done
         self.targetBase = tk.IntVar(value = 1)
         self.resultBase = tk.IntVar(value = 2)
         self.pegRNAspacer = tk.StringVar()
@@ -65,7 +65,7 @@ class Experiment():
         self.replaceBasesN = tk.IntVar(value = 0)
         self.excludeBpFromLeft  = tk.IntVar(value = 3)
         self.excludeBpFromRight = tk.IntVar(value = 3)
-        self.trimmingAdapter = tk.IntVar(value = 0)
+        self.trimmingAdapter = tk.IntVar(value = 0) # not all params
     def generateCommand(self):
         return ""
     def toJSON(self):
