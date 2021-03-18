@@ -7,8 +7,9 @@ if not ( sys.version_info[0] == 3 and sys.version_info[1] <= 7 ):
     print("Supported Python 3.8 only!")
     raise Exception("Must be using Python 3")
 
-buildUtility = True
-buildUI = True
+buildUtility = False
+buildBinaries = True
+buildUI = False
 
 block_cipher = None
 
@@ -48,17 +49,18 @@ if buildUI:
                    upx=True,
                    upx_exclude=[],
                    name='CRISPRessoUI')
+if buildBinaries:
+    sandbox.run_setup('E:\\Freelance\\Bochkov\\CRISPResso2UI\\CRISPResso2\\setup_pyx.py', ['build_ext', '--inplace'])
 
 if buildUtility:
-    sandbox.run_setup('E:\\Freelance\\Bochkov\\CRISPResso2UI\\CRISPResso2\\setup_pyx.py', ['build_ext', '--inplace'])
 
     added_files = [
         ( 'CRISPResso2/CRISPResso2/EDNAFULL', 'CRISPResso2' ),
         ( 'CRISPResso2/CRISPResso2/templates', 'CRISPResso2/templates' ),
         ( 'flash.exe', '.' ),
         ( 'dist/CRISPRessoUI/CRISPRessoUI.exe', '.' ),
-        ( 'Trimmomatic-0.39/trimmomatic-0.39.jar', 'trimmomatic.jar' ),
-        ( 'Trimmomatic-0.39/adapters', 'adapters' ),
+        ( 'CRISPResso2/trimmomatic.jar', '.' ),
+        ( 'CRISPResso2/adapters', 'adapters' ),
     ]
 
     a = Analysis(['CRISPResso2\\CRISPResso.py'],

@@ -260,16 +260,21 @@ def generateCmd(ctx, params):
         cmd = cmd + " -g " + seq.sgRNA.get()
     else:
         return None, "Only one sequence has been supported"
-    if params.ampliconNames.get() != "":
-        cmd = cmd + " -an " + params.ampliconNames.get()
-    #[-amas AMPLICON_MIN_ALIGNMENT_SCORE]
-    cmd = cmd + " -amas " + params.minimumHomologyValues[params.minimumHomology.get()]
-    #-gn -fg -fgn ignored
-    #-fh: flexiguides will yield guides in amplicons with at least this homology to the flexiguide sequence???
-    #--discard_guide_positions_overhanging_amplicon_edge ignored
+    #[-n NAME]
+    cmd = cmd + " --name " + params.sequenceName.get()
+    #[-o OUTPUT_FOLDER]
+    cmd = cmd + " --output_folder " + ctx.workingDirectory
     #[-e EXPECTED_HDR_AMPLICON_SEQ]
     if params.expectedHDRamplicon.get() != "":
         cmd = cmd + " -e " + params.expectedHDRamplicon.get()
+    #[--default_min_aln_score]
+    cmd = cmd + " --default_min_aln_score " + params.minimumHomologyValues[params.minimumHomology.get()]
+
+    if params.ampliconNames.get() != "":
+        cmd = cmd + " -an " + params.ampliconNames.get()
+    #-gn -fg -fgn ignored
+    #-fh: flexiguides will yield guides in amplicons with at least this homology to the flexiguide sequence???
+    #--discard_guide_positions_overhanging_amplicon_edge ignored
     #[-c CODING_SEQ]
     if params.codingSequence.get() != "":
         cmd = cmd + " -c " + params.codingSequence.get()
@@ -279,10 +284,6 @@ def generateCmd(ctx, params):
     cmd = cmd + " -s " + params.minimumSingleQualityValues[params.minimumSingleQuality.get()]
     #[--min_bp_quality_or_N MIN_BP_QUALITY_OR_N]
     cmd = cmd + " --min_bp_quality_or_N " + params.replaceBasesNValues[params.replaceBasesN.get()]
-    #[-n NAME]
-    cmd = cmd + " -n " + params.sequenceName.get()
-    #[-o OUTPUT_FOLDER]
-    cmd = cmd + " -o " + ctx.workingDirectory
     #--flash_command FLASH_COMMAND
     #--min_paired_end_reads_overlap MIN_PAIRED_END_READS_OVERLAP
     #                      Parameter for the FLASH read merging step. Minimum
@@ -314,20 +315,20 @@ def generateCmd(ctx, params):
     #[--exclude_bp_from_right EXCLUDE_BP_FROM_RIGHT]
     cmd = cmd + " --exclude_bp_from_right " + params.excludeBpFromRightValues[params.excludeBpFromRight.get()]
     # '--conversion_nuc_from'
-    cmd = cmd + " --conversion_nuc_from" + params.targetBaseValues[params.targetBase.get()]
+    cmd = cmd + " --conversion_nuc_from " + params.targetBaseValues[params.targetBase.get()]
     # '--conversion_nuc_from'
-    cmd = cmd + " --conversion_nuc_to" + params.resultBaseValues[params.resultBase.get()]
+    cmd = cmd + " --conversion_nuc_to " + params.resultBaseValues[params.resultBase.get()]
 
     # Prime editing
     if len(params.pegRNAspacer.get()) != 0:
-        cmd = cmd + " --prime_editing_pegRNA_spacer_seq" + params.pegRNAspacer.get()
-    if len(params.pegRNAextension.get()) != 0:
-        cmd = cmd + " --prime_editing_pegRNA_extension_seq" + params.pegRNAextension.get()
-    cmd = cmd + " --prime_editing_pegRNA_extension_quantification_window_size" + params.pegRNAQuantificationWindowSizeValues[params.pegRNAQuantificationWindowSize.get()]
-    if len(params.nickingSgRNA.get()) != 0:
-        cmd = cmd + " --prime_editing_nicking_guide_seq" + params.nickingSgRNA.get()
-    if len(params.scaffoldSequence.get()) != 0:
-        cmd = cmd + " --prime_editing_pegRNA_scaffold_seq" + params.scaffoldSequence.get()
+        cmd = cmd + " --prime_editing_pegRNA_spacer_seq " + params.pegRNAspacer.get()
+        if len(params.pegRNAextension.get()) != 0:
+            cmd = cmd + " --prime_editing_pegRNA_extension_seq " + params.pegRNAextension.get()
+        if len(params.nickingSgRNA.get()) != 0:
+            cmd = cmd + " --prime_editing_nicking_guide_seq " + params.nickingSgRNA.get()
+        if len(params.scaffoldSequence.get()) != 0:
+            cmd = cmd + " --prime_editing_pegRNA_scaffold_seq " + params.scaffoldSequence.get()
+    cmd = cmd + " --prime_editing_pegRNA_extension_quantification_window_size " + params.pegRNAQuantificationWindowSizeValues[params.pegRNAQuantificationWindowSize.get()]
     
     #--ignore_substitutions
     #                      Ignore substitutions events for the quantification and
